@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Paper: the launcher background and the window background before the
+         first frame, so start-up does not flash a different colour. -->
+    <color name="paper">#FBFAF8</color>
+</resources>
