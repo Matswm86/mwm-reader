@@ -11,19 +11,27 @@ PKG=no.mwmai.reader.debug
 ACTIVITY=no.mwmai.reader.MainActivity
 COMPONENT="$PKG/$ACTIVITY"
 OUT=smoke
-DEVICE_DIR=/sdcard/Download
+# Scoped storage means an app cannot read /sdcard/Download by raw path on
+# Android 10 and newer, whatever permission is granted, so the demo files are
+# written into the app's own data directory through run-as and opened there.
+# Verified on 2026-09-22: pushing to /sdcard/Download and granting
+# READ_EXTERNAL_STORAGE gave "No longer readable" on an API 30 emulator.
+DEVICE_DIR=/data/data/$PKG/files/demo
 mkdir -p "$OUT"
 
 python3 tools/make_demo.py "$OUT/demo" || { echo "::error::could not build the demo files"; exit 1; }
 
-adb shell mkdir -p "$DEVICE_DIR"
-for F in "$OUT"/demo/*; do
-    adb push "$F" "$DEVICE_DIR/" >/dev/null || { echo "::error::push failed for $F"; exit 1; }
-done
-
 chmod +x ./gradlew
 ./gradlew installDebug --no-daemon || { echo "::error::install failed"; exit 1; }
 adb shell pm grant "$PKG" android.permission.READ_EXTERNAL_STORAGE || true
+
+adb shell "run-as $PKG mkdir -p files/demo" || { echo "::error::run-as is not available for $PKG"; exit 1; }
+for F in "$OUT"/demo/*; do
+    NAME=$(basename "$F")
+    base64 -w0 "$F" | adb shell "run-as $PKG sh -c 'base64 -d > files/demo/$NAME'" \
+        || { echo "::error::could not stage $NAME into the app data directory"; exit 1; }
+done
+adb shell "run-as $PKG ls -l files/demo"
 
 adb logcat -c || true
 

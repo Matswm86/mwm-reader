@@ -69,7 +69,9 @@ class MainActivity : ComponentActivity() {
             else -> null
         } ?: return
 
-        if (uri.scheme == "file" && needsLegacyStoragePermission()) {
+        val path = uri.path.orEmpty()
+        val sharedPath = path.startsWith("/storage") || path.startsWith("/sdcard")
+        if (uri.scheme == "file" && sharedPath && needsLegacyStoragePermission()) {
             pendingFileUri = uri
             requestPermissions(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), REQUEST_READ)
             return

@@ -3,6 +3,7 @@ package no.mwmai.reader.data
 import android.content.Context
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
+import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
@@ -138,10 +139,27 @@ object Loader {
         }
     }
 
-    private fun unreadable(ref: DocRef) = LoadedDoc.Failed(
-        "No longer readable",
-        "${ref.name} could not be opened. It may have been moved, deleted, or the app's permission to read it expired.",
-    )
+    private fun unreadable(ref: DocRef): LoadedDoc {
+        // Since Android 10, an app may not read shared storage by raw path, so
+        // a file:// intent from an older file manager cannot be honoured no
+        // matter which permission is granted. Say that, rather than blaming a
+        // missing file the user can see sitting there.
+        val sharedPath = ref.uri.startsWith("file:///storage") || ref.uri.startsWith("file:///sdcard")
+        return if (sharedPath && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            LoadedDoc.Failed(
+                "Android will not hand this file over",
+                "${ref.name} arrived as a raw file path, and since Android 10 an app cannot read " +
+                    "shared storage that way. Open it with \u201cOpen a file\u201d on the home screen, " +
+                    "or add the folder it lives in, and it will open straight away.",
+            )
+        } else {
+            LoadedDoc.Failed(
+                "No longer readable",
+                "${ref.name} could not be opened. It may have been moved or deleted, or the app's " +
+                    "permission to read it expired.",
+            )
+        }
+    }
 
     private fun binary(ref: DocRef) = LoadedDoc.Failed(
         "Not a text file",
