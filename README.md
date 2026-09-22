@@ -1,6 +1,6 @@
 # MWM Reader
 
-<img src="docs/reader-pine.png" alt="MWM Reader showing a Pine Script file with syntax colouring and line numbers" width="270" align="right"/>
+<img src="docs/phone-pine-dark.jpg" alt="MWM Reader on a phone, showing a 1086-line Pine Script file on the dark Dusk theme with syntax colouring and line numbers" width="260" align="right"/>
 
 A quiet document reader for Android. Point it at a file and it shows the file:
 prose in a reading font, code with syntax colouring, markdown laid out, PDFs
@@ -87,14 +87,17 @@ JetBrains Mono whatever the prose typeface is.
 - Text files above 12 MB are cut off at that point, with a note where the cut
   happened.
 
-## The pictures above
+## The pictures
 
-They are not mock-ups. Every CI build installs the APK on an Android emulator,
-pushes a generated Pine script, markdown note, PDF and CSV onto it, opens each
-one, and checks from the view hierarchy that the right things are on screen: the
-Pine file's `ta.highest` call, the markdown's rendered heading, `Page 1 / 1` on
-the PDF, a CSV cell, and a working find-in-file hit counter. The screenshots are
-taken at those moments.
+The dark one at the top is a phone, reading a 1086-line Pine Script indicator on
+the Dusk theme. The light one is the CI emulator, and it is not a mock-up
+either: every build installs the APK on an Android emulator, puts a generated
+Pine script, markdown note, PDF, CSV, EPUB, Word file, spreadsheet and image on
+it, opens all nine, and checks from the view hierarchy that the right things
+are on screen. It looks for the Pine file's `ta.highest` call, the markdown's
+rendered heading, `Page 1 / 1` on the PDF, a CSV cell, the EPUB's title and
+first chapter, the Word heading and its table, the spreadsheet's sheet name, and
+a working find-in-file hit counter. The screenshots are taken at those moments.
 
 ## Build
 
