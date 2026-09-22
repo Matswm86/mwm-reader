@@ -148,7 +148,8 @@ fun PdfBody(
                 }
             },
     ) {
-        val widthPx = with(density) { (maxWidth.toPx() * zoom).toInt() }
+        val pageWidth = maxWidth
+        val widthPx = with(density) { (pageWidth.toPx() * zoom).toInt() }
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
             items(pageCount, key = { it }) { index ->
                 val bitmap by produceState<ImageBitmap?>(null, index, widthPx) {
@@ -171,7 +172,7 @@ fun PdfBody(
                         Box(
                             Modifier
                                 .fillMaxWidth()
-                                .height(maxWidth * pages.ratio)
+                                .height(pageWidth * pages.ratio)
                                 .background(palette.raised),
                         )
                     }

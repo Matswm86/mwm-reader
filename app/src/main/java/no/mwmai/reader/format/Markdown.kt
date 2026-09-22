@@ -184,7 +184,7 @@ object Markdown {
 
     private fun listItemOf(line: String): Triple<Int, String, String>? {
         val indent = line.takeWhile { it == ' ' || it == '\t' }
-            .sumOf { if (it == '\t') 4 else 1 }
+            .fold(0) { width, ch -> width + if (ch == '\t') 4 else 1 }
         val t = line.trimStart()
         if (t.length < 2) return null
         val c = t[0]
