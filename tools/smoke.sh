@@ -110,6 +110,23 @@ expect ui_csv.xml "trades.csv" "CSV" "date" "session" "2026-09-01" "London"
 open_file "notes.txt" ui_txt.xml 8
 expect ui_txt.xml "notes.txt" "wrapped by the"
 
+# ------------------------------------------------------------------ the EPUB
+open_file "sweep-demo.epub" ui_epub.xml 10
+expect ui_epub.xml "sweep-demo.epub" "EPUB" "The Sweep Demo" "MWM AI" "At the open"
+adb exec-out screencap -p > "$OUT/epub.png" 2>/dev/null || true
+
+# ------------------------------------------------------------------ the docx
+open_file "desk-notes.docx" ui_docx.xml 10
+expect ui_docx.xml "desk-notes.docx" "DOCX" "Desk notes for the week" "one of them skipped on news"
+
+# ------------------------------------------------------------------ the xlsx
+open_file "sessions.xlsx" ui_xlsx.xml 10
+expect ui_xlsx.xml "sessions.xlsx" "XLSX" "Sessions" "r_multiple"
+
+# ----------------------------------------------------------------- the image
+open_file "bands.png" ui_png.xml 9
+expect ui_png.xml "bands.png" "PNG"
+
 # ------------------------------------------------- find in file, on the script
 open_file "MWM_Sweep_Demo.pine" ui_pine2.xml 9
 python3 tools/ui_center.py "$OUT/ui_pine2.xml" "desc=Find in file" > "$OUT/tap.txt" \
@@ -128,4 +145,4 @@ if ! grep -qE 'text="[0-9]+/[0-9]+"' "$OUT/ui_search.xml"; then
 fi
 
 rm -rf "$OUT/demo"
-echo "Home listed, Pine coloured, markdown rendered, PDF drawn, CSV tabulated, text wrapped, search found hits."
+echo "Home listed; Pine coloured; markdown rendered; PDF drawn; CSV tabulated; text wrapped; EPUB, docx and xlsx extracted; image decoded; search found hits."

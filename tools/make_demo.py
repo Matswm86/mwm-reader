@@ -7,7 +7,11 @@ correct cross-reference offsets, so the test needs no PDF library.
 Usage: make_demo.py <output-directory>
 """
 
+import io
+import struct
 import sys
+import zipfile
+import zlib
 from pathlib import Path
 
 PINE = """//@version=6
@@ -101,6 +105,144 @@ CSV = """date,session,instrument,side,contracts,r_multiple,note
 """
 
 
+def build_zip(entries: dict[str, str | bytes]) -> bytes:
+    """A deflate zip in memory, which is what EPUB, docx and xlsx all are."""
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        for name, body in entries.items():
+            archive.writestr(name, body)
+    return buffer.getvalue()
+
+
+def build_epub() -> bytes:
+    """Two spine documents, an NCX for the chapter names, and the metadata."""
+    chapter = (
+        '<?xml version="1.0" encoding="utf-8"?>'
+        '<html xmlns="http://www.w3.org/1999/xhtml"><head><title>{title}</title></head>'
+        "<body><h1>{title}</h1><p>{body}</p></body></html>"
+    )
+    return build_zip(
+        {
+            "mimetype": "application/epub+zip",
+            "META-INF/container.xml": (
+                '<?xml version="1.0"?><container version="1.0" '
+                'xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles>'
+                '<rootfile full-path="OEBPS/book.opf" '
+                'media-type="application/oebps-package+xml"/></rootfiles></container>'
+            ),
+            "OEBPS/book.opf": (
+                '<?xml version="1.0"?><package version="2.0" '
+                'xmlns="http://www.idpf.org/2007/opf" unique-identifier="id">'
+                '<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
+                "<dc:title>The Sweep Demo</dc:title>"
+                "<dc:creator>MWM AI</dc:creator></metadata><manifest>"
+                '<item id="c1" href="ch1.xhtml" media-type="application/xhtml+xml"/>'
+                '<item id="c2" href="text/ch2.xhtml" media-type="application/xhtml+xml"/>'
+                '<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>'
+                '</manifest><spine toc="ncx"><itemref idref="c1"/>'
+                '<itemref idref="c2"/></spine></package>'
+            ),
+            "OEBPS/toc.ncx": (
+                '<?xml version="1.0"?><ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" '
+                'version="2005-1"><navMap>'
+                '<navPoint id="n1" playOrder="1"><navLabel><text>At the open</text></navLabel>'
+                '<content src="ch1.xhtml"/></navPoint>'
+                '<navPoint id="n2" playOrder="2"><navLabel><text>The reclaim</text></navLabel>'
+                '<content src="text/ch2.xhtml"/></navPoint></navMap></ncx>'
+            ),
+            "OEBPS/ch1.xhtml": chapter.format(
+                title="At the open",
+                body="Price ran the Asia high in the first ten minutes and left a wick behind it.",
+            ),
+            "OEBPS/text/ch2.xhtml": chapter.format(
+                title="The reclaim",
+                body="The close back inside the range was the signal, not the wick itself.",
+            ),
+        }
+    )
+
+
+def build_docx() -> bytes:
+    """A heading, two paragraphs, a numbered item and a two-column table."""
+    document = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+        "<w:body>"
+        '<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr>'
+        "<w:r><w:t>Desk notes for the week</w:t></w:r></w:p>"
+        "<w:p><w:r><w:t>Two sessions traded, </w:t></w:r>"
+        "<w:r><w:t>one of them skipped on news.</w:t></w:r></w:p>"
+        '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/></w:numPr></w:pPr>'
+        "<w:r><w:t>Stop always in before the fill confirms</w:t></w:r></w:p>"
+        "<w:tbl>"
+        "<w:tr><w:tc><w:p><w:r><w:t>Session</w:t></w:r></w:p></w:tc>"
+        "<w:tc><w:p><w:r><w:t>Result</w:t></w:r></w:p></w:tc></w:tr>"
+        "<w:tr><w:tc><w:p><w:r><w:t>London</w:t></w:r></w:p></w:tc>"
+        "<w:tc><w:p><w:r><w:t>plus 1.8R</w:t></w:r></w:p></w:tc></w:tr>"
+        "</w:tbl></w:body></w:document>"
+    )
+    return build_zip(
+        {
+            "[Content_Types].xml": (
+                '<?xml version="1.0"?><Types '
+                'xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+                '<Default Extension="xml" ContentType="application/xml"/></Types>'
+            ),
+            "word/document.xml": document,
+        }
+    )
+
+
+def build_xlsx() -> bytes:
+    """One named sheet whose text cells come from the shared-string table."""
+    return build_zip(
+        {
+            "xl/workbook.xml": (
+                '<?xml version="1.0"?><workbook><sheets>'
+                '<sheet name="Sessions" sheetId="1" r:id="rId1"/></sheets></workbook>'
+            ),
+            "xl/sharedStrings.xml": (
+                '<?xml version="1.0"?><sst count="4" uniqueCount="4">'
+                "<si><t>session</t></si><si><t>r_multiple</t></si>"
+                "<si><t>London</t></si><si><t>New York</t></si></sst>"
+            ),
+            "xl/worksheets/sheet1.xml": (
+                '<?xml version="1.0"?><worksheet><sheetData>'
+                '<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c></row>'
+                '<row r="2"><c r="A2" t="s"><v>2</v></c><c r="B2"><v>1.8</v></c></row>'
+                '<row r="3"><c r="A3" t="s"><v>3</v></c><c r="B3"><v>-1</v></c></row>'
+                "</sheetData></worksheet>"
+            ),
+        }
+    )
+
+
+def build_png(width: int = 480, height: int = 240) -> bytes:
+    """Three horizontal bands, so a failed decode is obvious in the screenshot."""
+
+    def chunk(kind: bytes, payload: bytes) -> bytes:
+        return (
+            struct.pack(">I", len(payload))
+            + kind
+            + payload
+            + struct.pack(">I", zlib.crc32(kind + payload) & 0xFFFFFFFF)
+        )
+
+    bands = [(0x2F, 0x6F, 0x62), (0xF4, 0xEC, 0xD8), (0xC9, 0x8A, 0x3E)]
+    raw = bytearray()
+    for y in range(height):
+        raw.append(0)  # no per-row filter
+        red, green, blue = bands[min(len(bands) - 1, y * len(bands) // height)]
+        raw += bytes((red, green, blue)) * width
+
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+        + chunk(b"IDAT", zlib.compress(bytes(raw), 6))
+        + chunk(b"IEND", b"")
+    )
+
+
 def build_pdf(title: str, lines: list[str]) -> bytes:
     """A one-page PDF with correct object offsets and cross-reference table."""
     text = [b"BT", b"/F1 22 Tf 64 720 Td (" + title.encode("latin-1") + b") Tj", b"ET"]
@@ -144,6 +286,10 @@ def main() -> int:
     (out / "reader-demo.md").write_text(MARKDOWN, encoding="utf-8")
     (out / "notes.txt").write_text(NOTES, encoding="utf-8")
     (out / "trades.csv").write_text(CSV, encoding="utf-8")
+    (out / "sweep-demo.epub").write_bytes(build_epub())
+    (out / "desk-notes.docx").write_bytes(build_docx())
+    (out / "sessions.xlsx").write_bytes(build_xlsx())
+    (out / "bands.png").write_bytes(build_png())
     (out / "reader-demo.pdf").write_bytes(
         build_pdf(
             "MWM Reader",
