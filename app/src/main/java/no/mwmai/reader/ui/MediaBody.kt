@@ -7,16 +7,22 @@ import android.os.ParcelFileDescriptor
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -81,8 +87,17 @@ class PdfPages(file: File) {
         if (index < 0 || index >= count) return null
         return try {
             r.openPage(index).use { page ->
-                val w = targetWidth.coerceIn(160, 2400)
-                val h = (w.toFloat() * page.height / maxOf(1, page.width)).toInt().coerceIn(1, 6000)
+                var w = targetWidth.coerceIn(160, 2400)
+                var h = (w.toFloat() * page.height / maxOf(1, page.width)).toInt().coerceIn(1, 6000)
+                // An A4 page at 2400px wide is 22 MB at four bytes a pixel, and
+                // two of them are on screen at once, so cap the area instead of
+                // only the width and let a tall page come back smaller.
+                val budget = 6_000_000
+                if (w.toLong() * h > budget) {
+                    val shrink = kotlin.math.sqrt(budget.toDouble() / (w.toDouble() * h))
+                    w = (w * shrink).toInt().coerceAtLeast(160)
+                    h = (h * shrink).toInt().coerceAtLeast(1)
+                }
                 val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
                 bitmap.eraseColor(android.graphics.Color.WHITE)
                 page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
@@ -142,46 +157,56 @@ fun PdfBody(
         modifier
             .fillMaxSize()
             .background(if (palette.dark) palette.page else palette.chrome)
+            .pinchZoom { change -> zoom = (zoom * change).coerceIn(1f, 4f) }
             .pointerInput(file.path) {
-                detectTransformGestures { _, _, gestureZoom, _ ->
-                    zoom = (zoom * gestureZoom).coerceIn(1f, 4f)
-                }
+                detectTapGestures(onDoubleTap = { zoom = if (zoom > 1.05f) 1f else 2.5f })
             },
     ) {
-        val pageWidth = maxWidth
-        val widthPx = with(density) { (pageWidth.toPx() * zoom).toInt() }
-        LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-            items(pageCount, key = { it }) { index ->
-                val bitmap by produceState<ImageBitmap?>(null, index, widthPx) {
-                    value = withContext(Dispatchers.IO) { pages.render(index, widthPx)?.asImageBitmap() }
-                }
-                Column(
-                    Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 6.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    val shown = bitmap
-                    if (shown != null) {
-                        Image(
-                            bitmap = shown,
-                            contentDescription = "Page ${index + 1}",
-                            contentScale = ContentScale.FillWidth,
-                            colorFilter = if (palette.dark) ColorFilter.colorMatrix(invert) else null,
-                            modifier = Modifier.fillMaxWidth().background(palette.raised),
-                        )
-                    } else {
-                        Box(
-                            Modifier
-                                .fillMaxWidth()
-                                .height(pageWidth * pages.ratio)
-                                .background(palette.raised),
+        // The page is laid out at screen width times the zoom and the whole
+        // column scrolls sideways, so zooming magnifies the text. Scaling the
+        // bitmap up while still drawing it at screen width, which is what this
+        // used to do, only made a sharper picture of the same tiny type.
+        val screenWidth = maxWidth
+        val pageWidth = screenWidth * zoom
+        val widthPx = with(density) { pageWidth.toPx().toInt() }
+        val across = rememberScrollState()
+
+        LaunchedEffect(zoom) { if (zoom <= 1.01f) across.scrollTo(0) }
+
+        Row(Modifier.fillMaxSize().horizontalScroll(across, enabled = zoom > 1.01f)) {
+            LazyColumn(state = listState, modifier = Modifier.width(pageWidth).fillMaxHeight()) {
+                items(pageCount, key = { it }) { index ->
+                    val bitmap by produceState<ImageBitmap?>(null, index, widthPx) {
+                        value = withContext(Dispatchers.IO) { pages.render(index, widthPx)?.asImageBitmap() }
+                    }
+                    Column(
+                        Modifier.width(pageWidth).padding(horizontal = 6.dp, vertical = 6.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        val shown = bitmap
+                        if (shown != null) {
+                            Image(
+                                bitmap = shown,
+                                contentDescription = "Page ${index + 1}",
+                                contentScale = ContentScale.FillWidth,
+                                colorFilter = if (palette.dark) ColorFilter.colorMatrix(invert) else null,
+                                modifier = Modifier.fillMaxWidth().background(palette.raised),
+                            )
+                        } else {
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(pageWidth * pages.ratio)
+                                    .background(palette.raised),
+                            )
+                        }
+                        Text(
+                            "Page ${index + 1} / $pageCount",
+                            color = palette.inkDim,
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(top = 4.dp, bottom = 10.dp),
                         )
                     }
-                    Text(
-                        "Page ${index + 1} / $pageCount",
-                        color = palette.inkDim,
-                        fontSize = 11.sp,
-                        modifier = Modifier.padding(top = 4.dp, bottom = 10.dp),
-                    )
                 }
             }
         }

@@ -14,6 +14,10 @@ drawn page by page, spreadsheets as tables. That is the whole job.
   PowerPoint, OpenDocument, and images.
 - **Reads well:** four page themes, three typefaces, adjustable size, line
   spacing and margins, and it remembers where you stopped in every file.
+- **Pinch to zoom, everywhere.** On text the type grows from 9 to 40 points and
+  the lines rewrap to the screen, so nothing runs off the edge. On a PDF or an
+  image the page itself magnifies up to four times and you drag it around; a
+  double tap jumps between fitted and 2.5x.
 - **Find in file** with a hit counter and next / previous, on any text format.
 - **A contents list** built from markdown headings, EPUB chapters, and the
   functions and classes in a source file.
@@ -40,7 +44,7 @@ uninstalling the old one first.
 | Prose | `txt` `log` `nfo` `rst` `org` `adoc` `srt` `vtt` | Reading font, wrapped, no line numbers |
 | Markdown | `md` `markdown` `mdx` `qmd` | Headings, lists, task boxes, quotes, tables, fenced code; a toggle shows the source |
 | Code | `pine` `py` `kt` `java` `js` `ts` `c` `cpp` `cs` `go` `rs` `rb` `php` `swift` `lua` `sh` `sql` `json` `yaml` `toml` `xml` `css` `hs` `lisp` `r` `pl` `diff` and more | Monospace, syntax colouring, line numbers, optional wrapping |
-| PDF | `pdf` | Page by page, pinch to zoom, inverted on the dark themes |
+| PDF | `pdf` | Page by page, pinch to magnify and drag to pan, double tap to fit, inverted on the dark themes |
 | E-books | `epub` | Chapter by chapter, with the book's own contents list |
 | Web | `html` `htm` `xhtml` | Rendered as text blocks. Nothing is fetched and no script runs |
 | Tables | `csv` `tsv` `psv` | A grid with a pinned header row and numbered rows |
@@ -54,7 +58,7 @@ and if they are not the reader says so instead of showing mojibake.
 
 ## Using it
 
-<img src="docs/reader-markdown.png" alt="MWM Reader showing a rendered markdown note with a heading, task list and table" width="250" align="right"/>
+<img src="docs/phone-home-dark.jpg" alt="MWM Reader home screen on a phone: Open a file and Add a folder, then a Recent list of a markdown note, a photo, a PDF and a Pine Script file" width="250" align="right"/>
 
 **Open a file** uses Android's own picker, so the reader never asks for
 all-files access. **Add a folder** grants read access to one folder, which then
@@ -63,6 +67,10 @@ lands in **Recent**, with the position you stopped at.
 
 The toolbar carries, left to right: back, the contents list (when the file has
 one), the markdown source toggle, find in file, and the reading settings.
+
+Pinching works on every page. One finger still scrolls, and the zoom only takes
+over once a second finger lands, so a pinch never leaves the list stranded
+mid-scroll.
 
 Reading settings live in one sheet: **Paper**, **Sepia**, **Dusk** and **Black**
 page themes plus **Auto** to follow the system, a sans / serif / mono choice for
@@ -89,9 +97,11 @@ JetBrains Mono whatever the prose typeface is.
 
 ## The pictures
 
-The dark one at the top is a phone, reading a 1086-line Pine Script indicator on
-the Dusk theme. The light one is the CI emulator, and it is not a mock-up
-either: every build installs the APK on an Android emulator, puts a generated
+<img src="docs/reader-markdown.png" alt="MWM Reader showing a rendered markdown note with a heading, task list and table on the light Paper theme" width="230" align="right"/>
+
+The two dark ones are a phone in ordinary use, on the Dusk theme: a 1086-line
+Pine Script indicator, and the home screen with its recent files. The light one
+is the CI emulator, and it is not a mock-up either: every build installs the APK on an Android emulator, puts a generated
 Pine script, markdown note, PDF, CSV, EPUB, Word file, spreadsheet and image on
 it, opens all nine, and checks from the view hierarchy that the right things
 are on screen. It looks for the Pine file's `ta.highest` call, the markdown's

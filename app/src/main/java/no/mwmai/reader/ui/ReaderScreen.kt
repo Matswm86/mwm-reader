@@ -86,6 +86,7 @@ fun ReaderScreen(vm: MainViewModel, onSettings: () -> Unit) {
     var outlineOpen by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val searchFocus = remember { FocusRequester() }
+    val stepZoom = remember { StepZoom() }
 
     val kind = remember(ref) { ref?.let { Kinds.kindOf(it.name, it.mime) } ?: DocKind.TEXT }
     val sourceMode = vm.showSource
@@ -213,7 +214,19 @@ fun ReaderScreen(vm: MainViewModel, onSettings: () -> Unit) {
             }
         },
     ) { inner ->
-        Box(Modifier.fillMaxSize().padding(inner)) {
+        // A PDF page and an image are pictures, so they zoom themselves. Text
+        // reflows instead: pinching changes the reading size, which keeps the
+        // lines wrapped to the screen rather than forcing a sideways scroll.
+        val pinch = if (kind == DocKind.PDF || kind == DocKind.IMAGE) {
+            Modifier
+        } else {
+            Modifier.pinchZoom { change ->
+                stepZoom.accept(change) { direction ->
+                    vm.update { s -> s.copy(fontSize = (s.fontSize + direction).coerceIn(9, 40)) }
+                }
+            }
+        }
+        Box(Modifier.fillMaxSize().padding(inner).then(pinch)) {
             when {
                 vm.loading || doc == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = palette.accent, modifier = Modifier.size(28.dp))

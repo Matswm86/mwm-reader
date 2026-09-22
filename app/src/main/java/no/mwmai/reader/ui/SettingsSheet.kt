@@ -88,7 +88,10 @@ fun SettingsSheet(vm: MainViewModel, onClose: () -> Unit) {
                 }
             }
             Text(
-                "Code is always shown in JetBrains Mono, whatever is picked here.",
+                "Code is always shown in JetBrains Mono, whatever is picked here. " +
+                    "Pinch on any page of text to change the size without coming in here; " +
+                    "on a PDF or an image, pinch magnifies the page itself and a double tap " +
+                    "jumps between fitted and 2.5\u00d7.",
                 color = palette.inkDim,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp),
@@ -97,8 +100,8 @@ fun SettingsSheet(vm: MainViewModel, onClose: () -> Unit) {
             SliderRow(
                 label = "Text size",
                 value = settings.fontSize.toFloat(),
-                range = 11f..30f,
-                steps = 18,
+                range = 9f..40f,
+                steps = 30,
                 display = "${settings.fontSize} pt",
             ) { vm.update { s -> s.copy(fontSize = it.toInt()) } }
 
