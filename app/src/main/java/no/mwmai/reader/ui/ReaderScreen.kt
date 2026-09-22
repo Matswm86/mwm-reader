@@ -304,13 +304,17 @@ fun ReaderScreen(vm: MainViewModel, onSettings: () -> Unit) {
     }
 }
 
+private fun plural(count: Int, one: String, many: String = one + "s"): String =
+    if (count == 1) "1 $one" else "$count $many"
+
 private fun subtitleFor(kind: DocKind, name: String, doc: LoadedDoc?, sourceMode: Boolean): String {
     val label = labelFor(kind, name)
     val extra = when (doc) {
-        is LoadedDoc.Lines -> "${doc.lines.size} lines" + if (doc.truncated) " (cut off)" else ""
-        is LoadedDoc.Rendered -> if (sourceMode) "source" else "${doc.blocks.size} blocks"
-        is LoadedDoc.Table -> "${doc.rows.size} rows × ${doc.header.size} columns"
-        is LoadedDoc.Pdf -> "${doc.pageCount} pages"
+        is LoadedDoc.Lines -> plural(doc.lines.size, "line") + if (doc.truncated) " (cut off)" else ""
+        is LoadedDoc.Rendered -> if (sourceMode) "source" else plural(doc.blocks.size, "block")
+        is LoadedDoc.Table ->
+            plural(doc.rows.size, "row") + " × " + plural(doc.header.size, "column")
+        is LoadedDoc.Pdf -> plural(doc.pageCount, "page")
         else -> ""
     }
     return listOf(label, extra).filter { it.isNotBlank() }.joinToString("  ·  ")

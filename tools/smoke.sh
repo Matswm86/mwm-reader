@@ -102,7 +102,9 @@ adb exec-out screencap -p > "$OUT/pdf.png" 2>/dev/null || true
 
 # -------------------------------------------------------------------- the CSV
 open_file "trades.csv" ui_csv.xml 9
-expect ui_csv.xml "trades.csv" "r_multiple" "swept Asia low then reclaimed"
+# Only the left-hand columns are composed: the grid scrolls sideways, and
+# "r_multiple" starts at roughly 542dp on a 393dp-wide Pixel 5 screen.
+expect ui_csv.xml "trades.csv" "CSV" "date" "session" "2026-09-01" "London"
 
 # ------------------------------------------------------------- the plain text
 open_file "notes.txt" ui_txt.xml 8
