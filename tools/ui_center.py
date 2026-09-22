@@ -3,6 +3,7 @@
 Usage: ui_center.py ui.xml "text=Sine 262 Hz"   or   "desc=Add to favorites"
 Exits 1 when nothing matches, so the smoke script can fail with a clear message.
 """
+
 import re
 import sys
 import xml.etree.ElementTree as ET

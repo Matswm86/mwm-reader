@@ -106,7 +106,9 @@ def build_pdf(title: str, lines: list[str]) -> bytes:
     text = [b"BT", b"/F1 22 Tf 64 720 Td (" + title.encode("latin-1") + b") Tj", b"ET"]
     y = 680
     for line in lines:
-        text.append(b"BT /F1 13 Tf 64 " + str(y).encode() + b" Td (" + line.encode("latin-1") + b") Tj ET")
+        text.append(
+            b"BT /F1 13 Tf 64 " + str(y).encode() + b" Td (" + line.encode("latin-1") + b") Tj ET"
+        )
         y -= 22
     stream = b"\n".join(text)
 
