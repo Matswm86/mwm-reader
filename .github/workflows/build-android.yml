@@ -137,6 +137,51 @@ jobs:
           files: ${{ env.APK_FILE }}
           fail_on_unmatched_files: true
 
+  # PDF search uses the text layer the system PDF engine gained in Android 15,
+  # so it is checked on an API 35 emulator of its own.
+  smoke-pdf-search:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Search a PDF on an API 35 emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          ram-size: 3072M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash tools/smoke_pdf_search.sh
+
+      - name: Upload logcat, view dumps and the screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mwm-reader-smoke-pdf-search
+          path: smoke-pdf/
+          if-no-files-found: warn
+
   # A green compile says nothing about whether a Pine script gets coloured or a
   # PDF page appears. This job puts real files on an emulator, opens each one,
   # and reads the answer back out of the view hierarchy.

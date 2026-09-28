@@ -53,7 +53,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import no.mwmai.reader.MainViewModel
 import no.mwmai.reader.data.Loader
 import no.mwmai.reader.format.Kinds
@@ -116,6 +119,31 @@ fun ReaderScreen(vm: MainViewModel, onSettings: () -> Unit) {
             }
         }
     }
+
+    // A PDF has no text in memory, so its search runs page by page on the
+    // system PDF engine in the background and the hits arrive as it goes.
+    var pdfHits by remember(doc) { mutableStateOf<List<PdfHit>>(emptyList()) }
+    var pdfSearching by remember(doc) { mutableStateOf(false) }
+    LaunchedEffect(doc, vm.query) {
+        val pdf = doc as? LoadedDoc.Pdf ?: return@LaunchedEffect
+        pdfHits = emptyList()
+        val q = vm.query.trim()
+        if (q.isEmpty()) {
+            pdfSearching = false
+            return@LaunchedEffect
+        }
+        delay(350) // wait for the typing to pause before reading a whole book
+        pdfSearching = true
+        try {
+            withContext(Dispatchers.IO) {
+                PdfSearch.search(pdf.file, q) { found, _ -> pdfHits = found }
+            }
+        } finally {
+            pdfSearching = false
+        }
+    }
+    val hitCount = if (doc is LoadedDoc.Pdf) pdfHits.size else hits.size
+    val pdfFocus = if (pdfHits.isEmpty()) null else pdfHits[vm.hitIndex.coerceIn(0, pdfHits.size - 1)]
 
     // Restore the saved reading position, or follow an outline / search jump.
     LaunchedEffect(doc, vm.jumpTo) {
@@ -187,7 +215,7 @@ fun ReaderScreen(vm: MainViewModel, onSettings: () -> Unit) {
                             )
                         }
                     }
-                    if (kind != DocKind.PDF && kind != DocKind.IMAGE) {
+                    if (kind != DocKind.IMAGE && (kind != DocKind.PDF || PdfSearch.supported)) {
                         IconButton(onClick = { vm.searchOpen = !vm.searchOpen; if (!vm.searchOpen) vm.query = "" }) {
                             Icon(Icons.Filled.Search, "Find in file", tint = if (vm.searchOpen) palette.accent else palette.inkDim)
                         }
@@ -204,11 +232,12 @@ fun ReaderScreen(vm: MainViewModel, onSettings: () -> Unit) {
                 SearchBar(
                     query = vm.query,
                     onQuery = { vm.query = it; vm.hitIndex = 0 },
-                    hits = hits.size,
-                    index = if (hits.isEmpty()) 0 else vm.hitIndex.coerceIn(0, hits.size - 1) + 1,
+                    hits = hitCount,
+                    index = if (hitCount == 0) 0 else vm.hitIndex.coerceIn(0, hitCount - 1) + 1,
+                    busy = pdfSearching,
                     focusRequester = searchFocus,
-                    onPrev = { if (hits.isNotEmpty()) vm.hitIndex = (vm.hitIndex - 1 + hits.size) % hits.size },
-                    onNext = { if (hits.isNotEmpty()) vm.hitIndex = (vm.hitIndex + 1) % hits.size },
+                    onPrev = { if (hitCount > 0) vm.hitIndex = (vm.hitIndex - 1 + hitCount) % hitCount },
+                    onNext = { if (hitCount > 0) vm.hitIndex = (vm.hitIndex + 1) % hitCount },
                     onClose = { vm.searchOpen = false; vm.query = "" },
                 )
             }
@@ -265,6 +294,8 @@ fun ReaderScreen(vm: MainViewModel, onSettings: () -> Unit) {
                     listState = listState,
                     startPage = vm.startPage,
                     onPage = { vm.rememberPosition(0, it) },
+                    hits = if (vm.searchOpen) pdfHits else emptyList(),
+                    focus = if (vm.searchOpen) pdfFocus else null,
                 )
 
                 doc is LoadedDoc.Picture -> ImageBody(doc.file)
@@ -359,6 +390,7 @@ private fun SearchBar(
     onQuery: (String) -> Unit,
     hits: Int,
     index: Int,
+    busy: Boolean,
     focusRequester: FocusRequester,
     onPrev: () -> Unit,
     onNext: () -> Unit,
@@ -385,7 +417,12 @@ private fun SearchBar(
                 )
             }
             Text(
-                if (query.isBlank()) "" else if (hits == 0) "none" else "$index/$hits",
+                when {
+                    query.isBlank() -> ""
+                    hits == 0 -> if (busy) "searching" else "none"
+                    // A plus while a PDF is still being read: more hits may come.
+                    else -> "$index/$hits" + if (busy) "+" else ""
+                },
                 color = palette.inkDim,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(horizontal = 8.dp),

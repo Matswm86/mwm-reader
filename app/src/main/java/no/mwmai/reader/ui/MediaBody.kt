@@ -35,6 +35,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.ImageBitmap
@@ -138,6 +141,8 @@ fun PdfBody(
     startPage: Int,
     onPage: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    hits: List<PdfHit> = emptyList(),
+    focus: PdfHit? = null,
 ) {
     val palette = LocalPalette.current
     val density = LocalDensity.current
@@ -173,6 +178,23 @@ fun PdfBody(
 
         LaunchedEffect(zoom) { if (zoom <= 1.01f) across.scrollTo(0) }
 
+        val hitsByPage = remember(hits) { hits.groupBy { it.page } }
+        val screenHeightPx = with(density) { maxHeight.toPx() }
+        val screenWidthPx = with(density) { screenWidth.toPx() }
+        val edgePx = with(density) { 6.dp.toPx() }
+
+        // Bring the chosen hit to the upper third of the screen, and sideways
+        // into view when the page is zoomed wider than the screen.
+        LaunchedEffect(focus, widthPx) {
+            val hit = focus ?: return@LaunchedEffect
+            val rect = hit.rects.firstOrNull() ?: return@LaunchedEffect
+            val imageWidth = widthPx - 2 * edgePx
+            val imageHeight = imageWidth * pages.ratio
+            val down = edgePx + rect.top * imageHeight - screenHeightPx / 3
+            listState.scrollToItem(hit.page, down.toInt().coerceAtLeast(0))
+            if (zoom > 1.01f) across.scrollTo((edgePx + rect.left * imageWidth - screenWidthPx / 3).toInt().coerceAtLeast(0))
+        }
+
         Row(Modifier.fillMaxSize().horizontalScroll(across, enabled = zoom > 1.01f)) {
             LazyColumn(state = listState, modifier = Modifier.width(pageWidth).fillMaxHeight()) {
                 items(pageCount, key = { it }) { index ->
@@ -190,7 +212,23 @@ fun PdfBody(
                                 contentDescription = "Page ${index + 1}",
                                 contentScale = ContentScale.FillWidth,
                                 colorFilter = if (palette.dark) ColorFilter.colorMatrix(invert) else null,
-                                modifier = Modifier.fillMaxWidth().background(palette.raised),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(palette.raised)
+                                    .drawWithContent {
+                                        drawContent()
+                                        val onPage = hitsByPage[index] ?: return@drawWithContent
+                                        for (hit in onPage) {
+                                            val tint = if (hit == focus) palette.accent.copy(alpha = 0.55f) else palette.accent.copy(alpha = 0.25f)
+                                            for (r in hit.rects) {
+                                                drawRect(
+                                                    color = tint,
+                                                    topLeft = Offset(r.left * size.width, r.top * size.height),
+                                                    size = Size((r.right - r.left) * size.width, (r.bottom - r.top) * size.height),
+                                                )
+                                            }
+                                        }
+                                    },
                             )
                         } else {
                             Box(
