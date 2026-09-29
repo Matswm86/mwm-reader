@@ -28,7 +28,7 @@ drawn page by page, spreadsheets as tables. That is the whole job.
 
 ## 📲 Download
 
-**[⬇ Latest APK](https://github.com/Matswm86/mwm-reader/releases/download/latest/mwm-reader-910f81e.apk)**
+**[⬇ Latest APK](https://github.com/Matswm86/mwm-reader/releases/download/latest/mwm-reader-8a2cbc0.apk)**
 &nbsp;·&nbsp; [all builds](https://github.com/Matswm86/mwm-reader/releases)
 
 Open the link on your phone, tap the file, and allow "install from this source"
