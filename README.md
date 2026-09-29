@@ -8,17 +8,20 @@ drawn page by page, spreadsheets as tables. That is the whole job.
 
 - **No ads, no account, no tracking, no cost.** The app does not hold the
   internet permission, so it has no way to fetch an advert, phone home, or send
-  the document you are reading anywhere. Check the manifest; it is four lines.
-- **Opens a lot of things:** plain text, markdown, 60-odd source languages
-  including Pine Script, PDF, EPUB, HTML, CSV and TSV, RTF, Word, Excel,
-  PowerPoint, OpenDocument, and images.
+  the document you are reading anywhere. Check the manifest: its only permission
+  is `READ_EXTERNAL_STORAGE`, and only on Android 12L and older.
+- **Opens a lot of things:** plain text, markdown, about 80 source and config
+  file extensions including Pine Script, PDF, EPUB, HTML, CSV and TSV, RTF,
+  Word, Excel, PowerPoint, OpenDocument, and images.
 - **Reads well:** four page themes, three typefaces, adjustable size, line
   spacing and margins, and it remembers where you stopped in every file.
 - **Pinch to zoom, everywhere.** On text the type grows from 9 to 40 points and
-  the lines rewrap to the screen, so nothing runs off the edge. On a PDF or an
-  image the page itself magnifies up to four times and you drag it around; a
-  double tap jumps between fitted and 2.5x.
+  the lines rewrap to the screen, so nothing runs off the edge. On a PDF the
+  page itself magnifies up to four times and you drag it around; a double tap
+  jumps between fitted and 2.5x. An image zooms up to six times and pans.
 - **Find in file** with a hit counter and next / previous, on any text format.
+  On a PDF it highlights every hit on the page, where the phone's PDF engine can
+  search (see the limits below).
 - **A contents list** built from markdown headings, EPUB chapters, and the
   functions and classes in a source file.
 - **Folders you add stay added**, so a notes or scripts folder is two taps away.
@@ -44,7 +47,7 @@ uninstalling the old one first.
 | Prose | `txt` `log` `nfo` `rst` `org` `adoc` `srt` `vtt` | Reading font, wrapped, no line numbers |
 | Markdown | `md` `markdown` `mdx` `qmd` | Headings, lists, task boxes, quotes, tables, fenced code; a toggle shows the source |
 | Code | `pine` `py` `kt` `java` `js` `ts` `c` `cpp` `cs` `go` `rs` `rb` `php` `swift` `lua` `sh` `sql` `json` `yaml` `toml` `xml` `css` `hs` `lisp` `r` `pl` `diff` and more | Monospace, syntax colouring, line numbers, optional wrapping |
-| PDF | `pdf` | Page by page, pinch to magnify and drag to pan, double tap to fit, inverted on the dark themes |
+| PDF | `pdf` | Page by page, pinch to magnify and drag to pan, double tap to fit, search hits highlighted, inverted on the dark themes |
 | E-books | `epub` | Chapter by chapter, with the book's own contents list |
 | Web | `html` `htm` `xhtml` | Rendered as text blocks. Nothing is fetched and no script runs |
 | Tables | `csv` `tsv` `psv` | A grid with a pinned header row and numbered rows |
@@ -90,8 +93,10 @@ JetBrains Mono whatever the prose typeface is.
 - Legacy binary `.doc`, `.xls` and `.ppt` are not supported, only the modern
   zipped formats. The app says which it is looking at rather than showing
   gibberish.
-- A PDF has no text layer the app can search, so find-in-file is offline for
-  PDFs and the button is hidden rather than lying about it.
+- PDF search needs the text layer of Android's own PDF engine, which is built in
+  from Android 15 and reaches Android 12 to 14 through the S extension 13 system
+  update. On any other phone the find button is hidden for PDFs rather than
+  lying about it. A search stops collecting at 2000 hits.
 - Text files above 12 MB are cut off at that point, with a note where the cut
   happened.
 
@@ -102,12 +107,16 @@ JetBrains Mono whatever the prose typeface is.
 The two dark ones are a phone in ordinary use, on the Dusk theme: a 1086-line
 Pine Script indicator, and the home screen with its recent files. The light one
 is the CI emulator, and it is not a mock-up either: every build installs the APK on an Android emulator, puts a generated
-Pine script, markdown note, PDF, CSV, EPUB, Word file, spreadsheet and image on
-it, opens all nine, and checks from the view hierarchy that the right things
-are on screen. It looks for the Pine file's `ta.highest` call, the markdown's
-rendered heading, `Page 1 / 1` on the PDF, a CSV cell, the EPUB's title and
-first chapter, the Word heading and its table, the spreadsheet's sheet name, and
-a working find-in-file hit counter. The screenshots are taken at those moments.
+Pine script, markdown note, PDF, CSV, text note, EPUB, Word file, spreadsheet and
+image on it, opens all nine, and checks from the view hierarchy that the right
+things are on screen. It looks for the Pine file's `ta.highest` call, the
+markdown's rendered heading, `Page 1 / 1` on the PDF, a CSV cell, a line of the
+text note, the EPUB's title and first chapter, the Word heading and a sentence
+under it, the spreadsheet's sheet name, and a working find-in-file hit counter.
+The screenshots are taken at those moments.
+
+A second emulator job, on Android 15, opens the demo PDF and searches it for a
+word that is on the page and one that is not.
 
 ## Build
 
@@ -123,7 +132,8 @@ syntax-highlighting code is in this repository.
 Every push to `main` is built by GitHub Actions
 ([workflow](.github/workflows/build-android.yml)), which runs the unit tests,
 publishes the APK to the rolling `latest` release, rewrites the download link
-above, and then runs the emulator check.
+above, and then runs two emulator checks: opening the demo files on Android 11
+(API 30), and searching a PDF on Android 15 (API 35).
 
 ## License
 
